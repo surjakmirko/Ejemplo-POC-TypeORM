@@ -12,8 +12,6 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/products", productRoutes);
 
 AppDataSource.initialize().then(() => {
-  console.log("Database connected");
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  app.listen(PORT, () => {;
   });
-}).catch((error) => console.error("Database connection failed:", error));
+})
