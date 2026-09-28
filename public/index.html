@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRUD Productos</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      padding: 2rem;
+    }
+
+    h1 { text-align: center; margin-bottom: 1.5rem; }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    input {
+      flex: 1;
+      padding: 0.6rem 0.8rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+
+    input:focus { outline: none; border-color: #4a90d9; }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .btn-primary { background: #4a90d9; color: #fff; }
+    .btn-primary:hover { background: #357abd; }
+    .btn-success { background: #27ae60; color: #fff; }
+    .btn-success:hover { background: #219150; }
+    .btn-danger { background: #e74c3c; color: #fff; }
+    .btn-danger:hover { background: #c0392b; }
+    .btn-secondary { background: #95a5a6; color: #fff; }
+    .btn-secondary:hover { background: #7f8c8d; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+
+    th { font-weight: 600; color: #555; }
+
+    .actions { display: flex; gap: 0.4rem; }
+
+    .msg {
+      padding: 0.6rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .msg-ok { background: #d4edda; color: #155724; }
+    .msg-err { background: #f8d7da; color: #721c24; }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Gestion de Productos</h1>
+
+    <div id="msg" class="msg"></div>
+
+    <div class="card">
+      <h2 id="form-title">Crear Producto</h2>
+      <form id="product-form">
+        <input type="hidden" id="edit-id" />
+        <div class="form-row">
+          <input type="text" id="name" placeholder="Nombre" required />
+        </div>
+        <div class="form-row">
+          <input type="number" id="price" placeholder="Precio" step="0.01" min="0" required />
+          <input type="number" id="stock" placeholder="Stock" min="0" value="0" />
+        </div>
+        <div class="form-row">
+          <button type="submit" class="btn-primary" id="btn-submit">Crear</button>
+          <button type="button" class="btn-secondary hidden" id="btn-cancel" onclick="resetForm()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Lista de Productos</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Precio</th>
+            <th>Stock</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="product-list"></tbody>
+      </table>
+      <p id="empty-msg" class="hidden" style="text-align:center;padding:1rem;color:#999;">No hay productos</p>
+    </div>
+  </div>
+
+  <script>
+    const API = "http://localhost:3000/products";
+    const form = document.getElementById("product-form");
+    const msgEl = document.getElementById("msg");
+
+    function showMsg(text, ok = true) {
+      msgEl.textContent = text;
+      msgEl.className = "msg " + (ok ? "msg-ok" : "msg-err");
+      msgEl.style.display = "block";
+      setTimeout(() => msgEl.style.display = "none", 3000);
+    }
+
+    function resetForm() {
+      form.reset();
+      document.getElementById("edit-id").value = "";
+      document.getElementById("form-title").textContent = "Crear Producto";
+      document.getElementById("btn-submit").textContent = "Crear";
+      document.getElementById("btn-cancel").classList.add("hidden");
+    }
+
+    async function loadProducts() {
+      try {
+        const res = await fetch(API);
+        const data = await res.json();
+        const tbody = document.getElementById("product-list");
+        const emptyMsg = document.getElementById("empty-msg");
+
+        if (data.length === 0) {
+          tbody.innerHTML = "";
+          emptyMsg.classList.remove("hidden");
+          return;
+        }
+
+        emptyMsg.classList.add("hidden");
+        tbody.innerHTML = data.map(p => `
+          <tr>
+            <td>${p.id}</td>
+            <td>${p.name}</td>
+            <td>$${parseFloat(p.price).toFixed(2)}</td>
+            <td>${p.stock}</td>
+            <td class="actions">
+              <button class="btn-success" onclick="editProduct(${p.id})">Editar</button>
+              <button class="btn-danger" onclick="deleteProduct(${p.id})">Eliminar</button>
+            </td>
+          </tr>
+        `).join("");
+      } catch {
+        showMsg("Error al cargar productos", false);
+      }
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const id = document.getElementById("edit-id").value;
+      const body = {
+        name: document.getElementById("name").value,
+        price: parseFloat(document.getElementById("price").value),
+        stock: parseInt(document.getElementById("stock").value) || 0,
+      };
+
+      try {
+        const url = id ? `${API}/${id}` : API;
+        const method = id ? "PUT" : "POST";
+        const res = await fetch(url, {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) throw new Error();
+        showMsg(id ? "Producto actualizado" : "Producto creado");
+        resetForm();
+        loadProducts();
+      } catch {
+        showMsg("Error al guardar producto", false);
+      }
+    });
+
+    async function editProduct(id) {
+      try {
+        const res = await fetch(`${API}/${id}`);
+        const p = await res.json();
+        document.getElementById("edit-id").value = p.id;
+        document.getElementById("name").value = p.name;
+        document.getElementById("price").value = p.price;
+        document.getElementById("stock").value = p.stock;
+        document.getElementById("form-title").textContent = "Editar Producto";
+        document.getElementById("btn-submit").textContent = "Actualizar";
+        document.getElementById("btn-cancel").classList.remove("hidden");
+      } catch {
+        showMsg("Error al cargar producto", false);
+      }
+    }
+
+    async function deleteProduct(id) {
+      if (!confirm("Eliminar producto?")) return;
+      try {
+        const res = await fetch(`${API}/${id}`, { method: "DELETE" });
+        if (!res.ok) throw new Error();
+        showMsg("Producto eliminado");
+        loadProducts();
+      } catch {
+        showMsg("Error al eliminar producto", false);
+      }
+    }
+
+    loadProducts();
+  </script>
+</body>
+</html>
