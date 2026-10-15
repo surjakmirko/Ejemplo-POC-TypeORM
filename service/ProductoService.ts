@@ -1,5 +1,6 @@
 import { AppDataSource } from "../config/data-source";
 import { Producto } from "../entity/Producto";
+import { TipoProducto } from "../entity/TipoProducto";
 import { CreateProductoDto } from "../dto/CreateProductoDto";
 import { UpdateProductoDto } from "../dto/UpdateProductoDto";
 
@@ -10,12 +11,14 @@ export async function crearProducto(dto: CreateProductoDto): Promise<Producto> {
     nombre: dto.nombre,
     precio: dto.precio,
     stock: dto.stock ?? 0,
+    tipo: { id: dto.tipoId },
   });
-  return productoRepository.save(product);
+  const guardado = await productoRepository.save(product);
+  return (await productoRepository.findOneBy({ id: guardado.id })) as Producto;
 }
 
 export async function getAllProductos(): Promise<Producto[]> {
-  return productoRepository.find();
+  return productoRepository.find({ order: { id: "ASC" } });
 }
 
 export async function getProductoPorId(id: number): Promise<Producto | null> {
@@ -29,8 +32,15 @@ export async function updateProducto(
   const product = await productoRepository.findOneBy({ id });
   if (!product) return null;
 
-  Object.assign(product, dto);
-  return productoRepository.save(product);
+  const { tipoId, ...resto } = dto;
+  Object.assign(product, resto);
+
+  if (tipoId !== undefined) {
+    product.tipo = { id: tipoId } as TipoProducto;
+  }
+
+  await productoRepository.save(product);
+  return productoRepository.findOneBy({ id });
 }
 
 export async function deleteProducto(id: number): Promise<boolean> {

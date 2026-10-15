@@ -28,15 +28,19 @@ export async function create(req: Request, res: Response) {
 }
 
 export async function update(req: Request, res: Response) {
-  const id = parseInt(req.params.id, 10);
-  const product = await ProductoService.updateProducto(id, req.body);
+  try {
+    const id = parseInt(req.params.id, 10);
+    const product = await ProductoService.updateProducto(id, req.body);
 
-  if (!product) {
-    res.status(404).json({ message: "Producto no encontrado" });
-    return;
+    if (!product) {
+      res.status(404).json({ message: "Producto no encontrado" });
+      return;
+    }
+
+    res.json(product);
+  } catch (error: any) {
+    res.status(400).json({ message: "Error al actualizar producto", error: error.message });
   }
-
-  res.json(product);
 }
 
 export async function remove(req: Request, res: Response) {

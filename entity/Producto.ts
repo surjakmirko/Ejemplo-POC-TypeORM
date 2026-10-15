@@ -3,7 +3,10 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from "typeorm";
+import { TipoProducto } from "./TipoProducto";
 
 @Entity()
 export class Producto {
@@ -21,4 +24,12 @@ export class Producto {
 
   @CreateDateColumn()
   fechaDeAlta!: Date;
+
+  @ManyToOne(() => TipoProducto, (tipo) => tipo.productos, {
+    nullable: false,
+    eager: true,
+    onDelete: "RESTRICT",
+  })
+  @JoinColumn({ name: "tipoId" })
+  tipo!: TipoProducto;
 }

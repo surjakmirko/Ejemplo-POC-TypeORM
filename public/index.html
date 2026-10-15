@@ -48,7 +48,20 @@
       font-size: 0.95rem;
     }
 
-    input:focus { outline: none; border-color: #4a90d9; }
+    select {
+      flex: 1;
+      padding: 0.6rem 0.8rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      background: #fff;
+    }
+
+    input:focus, select:focus { outline: none; border-color: #4a90d9; }
+
+    .hint { font-size: 0.85rem; color: #888; margin-top: 0.5rem; }
+    .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
+    .tag { background: #e8f0fb; color: #357abd; border-radius: 999px; padding: 0.15rem 0.7rem; font-size: 0.85rem; }
 
     button {
       padding: 0.6rem 1.2rem;
@@ -104,6 +117,17 @@
     <div id="msg" class="msg"></div>
 
     <div class="card">
+      <h2>Crear Tipo de Producto</h2>
+      <form id="tipo-form">
+        <div class="form-row">
+          <input type="text" id="tipo-nombre" placeholder="Nombre del tipo (ej: Bebidas)" required />
+          <button type="submit" class="btn-primary" style="flex:none">Crear tipo</button>
+        </div>
+      </form>
+      <div id="tipo-tags" class="tags"></div>
+    </div>
+
+    <div class="card">
       <h2 id="form-title">Crear Producto</h2>
       <form id="product-form">
         <input type="hidden" id="edit-id" />
@@ -114,6 +138,12 @@
           <input type="number" id="price" placeholder="Precio" step="0.01" min="0" required />
           <input type="number" id="stock" placeholder="Stock" min="0" value="0" />
         </div>
+        <div class="form-row">
+          <select id="tipo" required>
+            <option value="">Elegir tipo...</option>
+          </select>
+        </div>
+        <p id="tipo-hint" class="hint hidden">Primero creá un tipo de producto para poder cargar productos.</p>
         <div class="form-row">
           <button type="submit" class="btn-primary" id="btn-submit">Crear</button>
           <button type="button" class="btn-secondary hidden" id="btn-cancel" onclick="resetForm()">Cancelar</button>
@@ -128,6 +158,7 @@
           <tr>
             <th>ID</th>
             <th>Nombre</th>
+            <th>Tipo</th>
             <th>Precio</th>
             <th>Stock</th>
             <th>Acciones</th>
@@ -140,9 +171,25 @@
   </div>
 
   <script>
-    const API = "http://localhost:3000/products";
+    const API = "/products";
+    const API_TIPOS = "/tipos";
     const form = document.getElementById("product-form");
     const msgEl = document.getElementById("msg");
+    const tipoForm = document.getElementById("tipo-form");
+    const tipoSelect = document.getElementById("tipo");
+
+    function esc(t) {
+      return String(t).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    async function errorMsg(res, porDefecto) {
+      try {
+        const d = await res.json();
+        return d.error ? `${porDefecto}: ${d.error}` : (d.message || porDefecto);
+      } catch {
+        return porDefecto;
+      }
+    }
 
     function showMsg(text, ok = true) {
       msgEl.textContent = text;
@@ -176,8 +223,9 @@
         tbody.innerHTML = data.map(p => `
           <tr>
             <td>${p.id}</td>
-            <td>${p.name}</td>
-            <td>$${parseFloat(p.price).toFixed(2)}</td>
+            <td>${esc(p.nombre)}</td>
+            <td>${p.tipo ? esc(p.tipo.nombre) : "-"}</td>
+            <td>$${parseFloat(p.precio).toFixed(2)}</td>
             <td>${p.stock}</td>
             <td class="actions">
               <button class="btn-success" onclick="editProduct(${p.id})">Editar</button>
@@ -190,13 +238,52 @@
       }
     }
 
+    async function loadTipos(seleccionado) {
+      try {
+        const res = await fetch(API_TIPOS);
+        const tipos = await res.json();
+        const actual = seleccionado !== undefined ? String(seleccionado) : tipoSelect.value;
+
+        tipoSelect.innerHTML = '<option value="">Elegir tipo...</option>' +
+          tipos.map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join("");
+        tipoSelect.value = actual;
+
+        document.getElementById("tipo-tags").innerHTML =
+          tipos.map(t => `<span class="tag">${esc(t.nombre)}</span>`).join("");
+        document.getElementById("tipo-hint").classList.toggle("hidden", tipos.length > 0);
+        document.getElementById("btn-submit").disabled = tipos.length === 0;
+      } catch {
+        showMsg("Error al cargar tipos", false);
+      }
+    }
+
+    tipoForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const nombre = document.getElementById("tipo-nombre").value.trim();
+      try {
+        const res = await fetch(API_TIPOS, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nombre }),
+        });
+        if (!res.ok) throw new Error(await errorMsg(res, "Error al crear tipo"));
+        const creado = await res.json();
+        showMsg("Tipo creado");
+        tipoForm.reset();
+        loadTipos(creado.id);
+      } catch (err) {
+        showMsg(err.message || "Error al crear tipo", false);
+      }
+    });
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const id = document.getElementById("edit-id").value;
       const body = {
-        name: document.getElementById("name").value,
-        price: parseFloat(document.getElementById("price").value),
+        nombre: document.getElementById("name").value,
+        precio: parseFloat(document.getElementById("price").value),
         stock: parseInt(document.getElementById("stock").value) || 0,
+        tipoId: parseInt(tipoSelect.value),
       };
 
       try {
@@ -208,12 +295,12 @@
           body: JSON.stringify(body),
         });
 
-        if (!res.ok) throw new Error();
+        if (!res.ok) throw new Error(await errorMsg(res, "Error al guardar producto"));
         showMsg(id ? "Producto actualizado" : "Producto creado");
         resetForm();
         loadProducts();
-      } catch {
-        showMsg("Error al guardar producto", false);
+      } catch (err) {
+        showMsg(err.message || "Error al guardar producto", false);
       }
     });
 
@@ -222,9 +309,10 @@
         const res = await fetch(`${API}/${id}`);
         const p = await res.json();
         document.getElementById("edit-id").value = p.id;
-        document.getElementById("name").value = p.name;
-        document.getElementById("price").value = p.price;
+        document.getElementById("name").value = p.nombre;
+        document.getElementById("price").value = p.precio;
         document.getElementById("stock").value = p.stock;
+        tipoSelect.value = p.tipo ? p.tipo.id : "";
         document.getElementById("form-title").textContent = "Editar Producto";
         document.getElementById("btn-submit").textContent = "Actualizar";
         document.getElementById("btn-cancel").classList.remove("hidden");
@@ -245,6 +333,7 @@
       }
     }
 
+    loadTipos();
     loadProducts();
   </script>
 </body>
