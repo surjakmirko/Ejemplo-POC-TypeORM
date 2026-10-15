@@ -6,19 +6,19 @@ import {
 } from "typeorm";
 
 @Entity()
-export class Product {
+export class Producto {
   @PrimaryGeneratedColumn()
   id!: number;
 
   @Column("varchar")
-  name!: string;
+  nombre!: string;
 
   @Column("decimal", { precision: 10, scale: 2 })
-  price!: number;
+  precio!: number;
 
   @Column("int", { default: 0 })
   stock!: number;
 
   @CreateDateColumn()
-  createdAt!: Date;
+  fechaDeAlta!: Date;
 }

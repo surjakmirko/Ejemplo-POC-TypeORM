@@ -1,14 +1,14 @@
 import { Request, Response } from "express";
-import * as ProductService from "../service/ProductService";
+import * as ProductoService from "../service/ProductoService";
 
 export async function getAll(_req: Request, res: Response) {
-  const products = await ProductService.getAllProducts();
+  const products = await ProductoService.getAllProductos();
   res.json(products);
 }
 
-export async function getById(req: Request, res: Response) {
+export async function getPorId(req: Request, res: Response) {
   const id = parseInt(req.params.id, 10);
-  const product = await ProductService.getProductById(id);
+  const product = await ProductoService.getProductoPorId(id);
 
   if (!product) {
     res.status(404).json({ message: "Producto no encontrado" });
@@ -20,7 +20,7 @@ export async function getById(req: Request, res: Response) {
 
 export async function create(req: Request, res: Response) {
   try {
-    const product = await ProductService.createProduct(req.body);
+    const product = await ProductoService.crearProducto(req.body);
     res.status(201).json(product);
   } catch (error: any) {
     res.status(400).json({ message: "Error al crear producto", error: error.message });
@@ -29,7 +29,7 @@ export async function create(req: Request, res: Response) {
 
 export async function update(req: Request, res: Response) {
   const id = parseInt(req.params.id, 10);
-  const product = await ProductService.updateProduct(id, req.body);
+  const product = await ProductoService.updateProducto(id, req.body);
 
   if (!product) {
     res.status(404).json({ message: "Producto no encontrado" });
@@ -41,7 +41,7 @@ export async function update(req: Request, res: Response) {
 
 export async function remove(req: Request, res: Response) {
   const id = parseInt(req.params.id, 10);
-  const deleted = await ProductService.deleteProduct(id);
+  const deleted = await ProductoService.deleteProducto(id);
 
   if (!deleted) {
     res.status(404).json({ message: "Producto no encontrado" });
